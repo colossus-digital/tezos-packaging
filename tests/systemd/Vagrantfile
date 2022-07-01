@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2022 Oxhead Alpha
+# SPDX-License-Identifier: LicenseRef-MIT-OA
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'getoptlong'
+
+packagesDirectory = ENV['PACKAGES_DIRECTORY'] || "./out"
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/ubuntu2004"
+  config.vm.provision "file", source: "#{packagesDirectory}", destination: "$HOME/out"
+  config.vm.provision "file", source: "services_tests.py", destination: "$HOME/services_tests.py"
+  config.vm.provision "shell", inline: <<-SHELL
+    add-apt-repository -y ppa:serokell/tezos && apt-get update
+    apt-get install -y tezos-sapling-params acl python3-pystemd python3-pytest python3-psutil
+  SHELL
+  config.vm.provision "shell", path: "bootstrap.sh"
+  config.vm.provision "shell", inline: <<-SHELL
+    pytest-3 services_tests.py
+  SHELL
+end
