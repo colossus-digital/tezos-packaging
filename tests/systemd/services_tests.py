@@ -23,18 +23,12 @@ def unit(service_name: str):
     unit.Unit.Start("replace")
     while unit.Unit.ActiveState == b"activating":
         sleep(1)
-    if unit.Unit.ActiveState != b"active":
-        raise Exception(f"{service_name} failed to start")
-    # Some delay for changes to propagate
-    sleep(5)
     try:
         yield unit
     finally:
         unit.Unit.Stop("replace")
         while unit.Unit.ActiveState not in [b"failed", b"inactive"]:
             sleep(1)
-        # Some delay for changes to propagate
-        sleep(5)
 
 
 def replace_service_environment_variable(service_name: Unit, key: str, value: str):
@@ -56,14 +50,21 @@ def replace_service_environment_variable(service_name: Unit, key: str, value: st
         with Manager(_autoload=True) as m:
             return m.Manager.Reload()
 
+def retry(action, name: str, retry_count: int = 10) -> bool:
+    if action(name):
+        return True
+    elif retry_count == 0:
+        return False
+    else:
+        sleep(1)
+        return retry(action, name, retry_count - 1)
 
 def check_running_process(process_name: str) -> bool:
-    return process_name in [proc.name() for proc in process_iter()]
+    return retry(lambda x: x in [proc.name() for proc in process_iter()], process_name)
 
 
 def check_active_service(service_name: str) -> bool:
-    unit = Unit(service_name.encode(), _autoload=True)
-    return unit.Unit.ActiveState == b"active"
+    return retry(lambda x: Unit(x.encode(), _autoload=True).Unit.ActiveState == b"active", service_name)
 
 
 def node_service_test(network: str, rpc_endpoint="http://localhost:8732"):
@@ -71,7 +72,7 @@ def node_service_test(network: str, rpc_endpoint="http://localhost:8732"):
         # checking that service started 'tezos-node' process
         assert check_running_process("tezos-node")
         # checking that node is able to respond on RPC requests
-        assert url_is_reachable(f"{rpc_endpoint}/config")
+        assert retry(url_is_reachable, f"{rpc_endpoint}/config")
 
 
 def baking_service_test(network: str, protocols: List[str], baker_alias="baker"):
