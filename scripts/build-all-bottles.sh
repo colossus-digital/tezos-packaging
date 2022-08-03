@@ -17,10 +17,12 @@ for f in "${formulae[@]}"; do
     # build a bottle
     if ./scripts/build-one-bottle.sh "$f"; then
       ./scripts/build-one-bottle.sh "aaa-$f" ||
-        retval="2"; echo "Bottle for $f couldn't be uploaded to release."
+        retval="1"; echo "Bottle for $f couldn't be uploaded to release."
     else
-      retval="2"
+      retval="1"
       >&2 echo "Bottle for $f couldn't be built."
     fi
   fi
 done
+
+exit "$retval"

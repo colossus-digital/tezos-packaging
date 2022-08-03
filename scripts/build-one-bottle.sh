@@ -20,4 +20,4 @@ if [ "$1" == "aaa-tezos-client" ] ; then
     exit 2
 fi
 
-cat "$1" > "$1.bottle.tmp"
+echo "$1" > "$1.bottle.tmp"
